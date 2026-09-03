@@ -8,8 +8,8 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const BACKEND_URL = process.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-const BACKEND_BASE = BACKEND_URL.replace('/api', '');
+const BACKEND_URL = process.env.BACKEND_URL || process.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+const BACKEND_BASE = BACKEND_URL.endsWith('/api') ? BACKEND_URL.replace('/api', '') : BACKEND_URL;
 
 // Create proxy
 const proxy = httpProxy.createProxyServer({
