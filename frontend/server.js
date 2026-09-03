@@ -18,12 +18,21 @@ console.log(`Backend Base: ${BACKEND_BASE}`);
 const proxy = httpProxy.createProxyServer({
   target: BACKEND_BASE,
   changeOrigin: true,
-  followRedirects: true
+  followRedirects: true,
+  pathRewrite: (path, req) => {
+    // Preserve /api in the forwarded request
+    return path;
+  }
 });
 
 // Proxy API requests to backend
 app.use('/api', (req, res) => {
-  proxy.web(req, res);
+  proxy.web(req, res, (err) => {
+    if (err) {
+      console.error('Proxy error:', err.message);
+      res.status(502).json({ error: 'Backend unreachable', detail: err.message });
+    }
+  });
 });
 
 // Serve static frontend files
