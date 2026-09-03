@@ -32,9 +32,18 @@ app.use('/api', (req, res) => {
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, 'dist')));
 
-// SPA fallback - serve index.html for all non-API routes
+// SPA fallback - serve index.html for all non-API routes, injecting API config
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+  const indexPath = path.join(__dirname, 'dist', 'index.html');
+  const fs = require('fs');
+  let html = fs.readFileSync(indexPath, 'utf8');
+
+  // Inject window.API_BASE_URL before the script tags
+  const apiConfig = `<script>window.API_BASE_URL = '${BACKEND_URL}/api';</script>`;
+  html = html.replace('</head>', apiConfig + '</head>');
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(html);
 });
 
 app.listen(PORT, () => {

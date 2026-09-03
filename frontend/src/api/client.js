@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const BACKEND_URL = 'https://restaurantos-backend-wg6g.onrender.com/api';
+// Use injected config from server if available, otherwise use default
+const BACKEND_URL = typeof window !== 'undefined' && window.API_BASE_URL
+  ? window.API_BASE_URL
+  : 'https://restaurantos-backend-wg6g.onrender.com/api';
 
 const api = axios.create({
   baseURL: BACKEND_URL,
