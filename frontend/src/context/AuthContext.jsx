@@ -32,6 +32,9 @@ export function AuthProvider({ children }) {
     setError(null);
     try {
       const { data } = await api.post('/auth/login', { email, password });
+      if (data.token) {
+        localStorage.setItem('ros_token', data.token);
+      }
       setUser(data.user);
       return true;
     } catch (err) {

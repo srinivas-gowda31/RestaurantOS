@@ -29,16 +29,7 @@ router.post('/register', async (req, res) => {
       expiresIn: '12h',
     });
 
-    // Set HTTP-only secure cookie
-    res.cookie('auth_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 12 * 60 * 60 * 1000, // 12 hours
-      path: '/',
-    });
-
-    res.status(201).json({ user });
+    res.status(201).json({ token, user });
   } catch (err) {
     res.status(500).json({ error: 'Registration failed', detail: err.message });
   }
@@ -60,16 +51,10 @@ router.post('/login', async (req, res) => {
       expiresIn: '12h',
     });
 
-    // Set HTTP-only secure cookie
-    res.cookie('auth_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 12 * 60 * 60 * 1000, // 12 hours
-      path: '/',
+    res.json({
+      token,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role }
     });
-
-    res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } });
   } catch (err) {
     res.status(500).json({ error: 'Login failed', detail: err.message });
   }
