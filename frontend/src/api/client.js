@@ -1,8 +1,12 @@
 import axios from 'axios';
 
+const BACKEND_URL = 'https://restaurantos-backend-wg6g.onrender.com/api';
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  baseURL: BACKEND_URL,
 });
+
+console.log('API Base URL:', BACKEND_URL);
 
 // Add token to request headers
 api.interceptors.request.use((config) => {
