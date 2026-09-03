@@ -4,5 +4,6 @@ COPY package*.json ./
 RUN npm ci
 COPY . .
 RUN npm run build
+COPY server.js ./
 EXPOSE 3000
-CMD ["npx", "serve", "-s", "dist", "-l", "3000"]
+CMD ["node", "server.js"]
