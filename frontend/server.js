@@ -1,19 +1,27 @@
-const express = require('express');
-const path = require('path');
-const { createProxyMiddleware } = require('http-proxy-middleware');
+import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import httpProxy from 'http-proxy';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const BACKEND_URL = process.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+const BACKEND_BASE = BACKEND_URL.replace('/api', '');
+
+// Create proxy
+const proxy = httpProxy.createProxyServer({
+  target: BACKEND_BASE,
+  changeOrigin: true,
+  followRedirects: true
+});
 
 // Proxy API requests to backend
-app.use('/api', createProxyMiddleware({
-  target: BACKEND_URL.replace('/api', ''),
-  changeOrigin: true,
-  pathRewrite: {
-    '^/api': '/api'
-  }
-}));
+app.use('/api', (req, res) => {
+  proxy.web(req, res);
+});
 
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, 'dist')));
@@ -25,5 +33,5 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Frontend server listening on port ${PORT}`);
-  console.log(`Proxying /api requests to ${BACKEND_URL.replace('/api', '')}`);
+  console.log(`Proxying /api requests to ${BACKEND_BASE}`);
 });
