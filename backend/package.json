@@ -1,7 +1,7 @@
 {
   "name": "restaurantos-backend",
   "version": "1.0.0",
-  "description": "RestaurantOS API - Node.js/Express backend with PostgreSQL, JWT/RBAC auth, and Claude-powered AI features",
+  "description": "RestaurantOS API - Node.js/Express backend with PostgreSQL, JWT/RBAC auth, and Gemini-powered AI features",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",

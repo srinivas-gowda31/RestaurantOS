@@ -20,7 +20,7 @@ insights dashboard, and AI-powered features including invoice OCR/extraction.
 | Backend | Node.js + Express |
 | Database | PostgreSQL |
 | Auth | JWT + bcrypt, role-based authorization middleware |
-| AI | Anthropic Claude API (vision for invoice OCR, reasoning for predictions) |
+| AI | Google Gemini API (vision for invoice OCR, reasoning for predictions) |
 | File processing | Multer (uploads), ExcelJS (expense register export) |
 | Containerization | Docker + Docker Compose |
 
@@ -44,15 +44,15 @@ feature" — a generic, well-tested pattern applied consistently across all modu
 demonstrates that better than 20 bespoke, inconsistent screens.
 
 **AI features with graceful fallback.** Every `/api/ai/*` endpoint pulls real
-operational data from Postgres, sends it to Claude with a tightly-scoped prompt asking
-for structured JSON, and parses the result. If `ANTHROPIC_API_KEY` is not configured (or
+operational data from Postgres, sends it to Gemini with a tightly-scoped prompt asking
+for structured JSON, and parses the result. If `GEMINI_API_KEY` is not configured (or
 the call fails for any reason), each endpoint falls back to a deterministic rule-based
 heuristic (e.g. burn-rate-based days-until-stockout, 30-day-usage-based reorder
 quantities) so the feature always returns a usable result end-to-end, and the response
 clearly states when it used the fallback path.
 
-**Invoice OCR via Claude's vision, not a separate OCR pipeline.** Rather than bolting on
-Tesseract/Textract, uploaded invoices (PDF or image) are sent directly to Claude with a
+**Invoice OCR via Gemini's vision, not a separate OCR pipeline.** Rather than bolting on
+Tesseract/Textract, uploaded invoices (PDF or image) are sent directly to Gemini with a
 strict JSON extraction schema. This handles printed *and* handwritten invoices with one
 code path, which is exactly the stated requirement.
 
@@ -72,7 +72,7 @@ restaurantos/
 │   │   ├── routes/dashboard.routes.js   # business insight aggregations
 │   │   ├── routes/ai.routes.js          # 5 required AI features
 │   │   ├── routes/invoices.routes.js    # AI invoice upload/extraction/export
-│   │   ├── services/claudeClient.js     # Anthropic API wrapper
+│   │   ├── services/geminiClient.js     # Gemini API wrapper
 │   │   └── db/schema.sql, seed.sql, migrate.js
 │   ├── Dockerfile
 │   └── .env.example
@@ -94,7 +94,7 @@ restaurantos/
 
 ```bash
 cd restaurantos
-cp backend/.env.example .env   # edit ANTHROPIC_API_KEY and JWT_SECRET
+cp backend/.env.example .env   # edit GEMINI_API_KEY and JWT_SECRET
 docker compose up --build
 ```
 
@@ -117,7 +117,7 @@ createdb restaurantos
 
 # 2. Backend
 cd backend
-cp .env.example .env        # fill in DB credentials, JWT_SECRET, ANTHROPIC_API_KEY
+cp .env.example .env        # fill in DB credentials, JWT_SECRET, GEMINI_API_KEY
 npm install
 npm run migrate:seed        # creates schema + demo data
 npm run dev                 # http://localhost:5000
@@ -141,7 +141,7 @@ npm run dev                 # http://localhost:5173
 
 ## 5. AI Features — what's implemented
 
-Requires `ANTHROPIC_API_KEY` in `backend/.env`. Without it, every endpoint still works via
+Requires `GEMINI_API_KEY` in `backend/.env`. Without it, every endpoint still works via
 its rule-based fallback (clearly labeled in the response).
 
 - **Predict ingredient shortages** — `GET /api/ai/predict-shortages`
@@ -151,7 +151,7 @@ its rule-based fallback (clearly labeled in the response).
 - **Analyze ingredient waste** — `GET /api/ai/waste-analysis`
 - **AI Invoice Processing** — `POST /api/invoices/upload` (multipart field `invoice`,
   accepts PDF/PNG/JPG/WEBP, printed or handwritten) → extracts supplier, invoice #, date,
-  line items, total via Claude vision → stores in Postgres → viewable in-app →
+  line items, total via Gemini vision → stores in Postgres → viewable in-app →
   `GET /api/invoices/export/excel` generates the Expense Register workbook.
 
 All five AI routes are visible and runnable from the **AI Insights** page in the UI; the

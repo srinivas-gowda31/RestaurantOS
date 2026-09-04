@@ -44,7 +44,7 @@ export default function AiInsights() {
         <Sparkles className="w-5 h-5 text-brand-600" />
         <div>
           <h1 className="text-xl font-bold text-ink-800">AI Insights</h1>
-          <p className="text-sm text-ink-500">AI-powered predictions across inventory, pricing and waste, backed by Claude.</p>
+          <p className="text-sm text-ink-500">AI-powered predictions across inventory, pricing and waste, backed by Gemini.</p>
         </div>
       </div>
 

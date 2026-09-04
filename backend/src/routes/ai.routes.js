@@ -1,7 +1,7 @@
 const express = require('express');
 const pool = require('../config/db');
 const { authenticate, authorize } = require('../middleware/auth');
-const { callClaude, extractJson } = require('../services/claudeClient');
+const { callGemini, extractJson } = require('../services/geminiClient');
 
 const router = express.Router();
 const MGMT = ['owner', 'manager', 'chef', 'store_manager'];
@@ -9,7 +9,7 @@ const MGMT = ['owner', 'manager', 'chef', 'store_manager'];
 /**
  * All endpoints below follow the same pattern:
  * 1. Pull real operational data from Postgres.
- * 2. Hand it to Claude with a tightly-scoped prompt asking for structured JSON.
+ * 2. Hand it to Gemini with a tightly-scoped prompt asking for structured JSON.
  * 3. Fall back to a deterministic rule-based heuristic if the AI call fails
  *    (e.g. no API key configured), so the feature always works end-to-end.
  */
@@ -37,7 +37,7 @@ and estimate days-until-stockout using current_stock, reorder_level and used_las
 Return ONLY a JSON array, no prose, of objects: {id, name, risk: "high"|"medium"|"low", days_until_stockout, reasoning}.
 
 Data: ${JSON.stringify(ingredients)}`;
-      const text = await callClaude(prompt, { maxTokens: 1500 });
+      const text = await callGemini(prompt, { maxTokens: 1500 });
       result = extractJson(text);
     } catch (aiErr) {
       // Deterministic fallback heuristic
@@ -74,7 +74,7 @@ based on 30-day usage as a proxy for demand. Return ONLY a JSON array of
 {id, name, recommended_order_qty, unit, justification}.
 
 Data: ${JSON.stringify(products)}`;
-      const text = await callClaude(prompt, { maxTokens: 1500 });
+      const text = await callGemini(prompt, { maxTokens: 1500 });
       result = extractJson(text);
     } catch (aiErr) {
       result = products
@@ -113,7 +113,7 @@ suggest an optimal price to maximize profit while remaining competitive for a mi
 food cost percentage of 28-35%. Return ONLY JSON: {suggested_price, min_price, max_price, target_margin_pct, reasoning}.
 
 Item: ${JSON.stringify(item)}`;
-      const text = await callClaude(prompt, { maxTokens: 600 });
+      const text = await callGemini(prompt, { maxTokens: 600 });
       result = extractJson(text);
     } catch (aiErr) {
       const cost = parseFloat(item.cost_price) || 0;
@@ -148,7 +148,7 @@ estimate the realistic total preparation time in minutes for the whole order, ac
 that can be made simultaneously versus sequential bottleneck items. Return ONLY JSON: {estimated_minutes, bottleneck_item, notes}.
 
 Items: ${JSON.stringify(items)}`;
-      const text = await callClaude(prompt, { maxTokens: 400 });
+      const text = await callGemini(prompt, { maxTokens: 400 });
       result = extractJson(text);
     } catch (aiErr) {
       const maxTime = Math.max(...items.map((i) => i.prep_time_minutes || 10));
@@ -179,7 +179,7 @@ router.get('/waste-analysis', authenticate, authorize(...MGMT), async (req, res)
 to reduce ingredient waste. Return ONLY JSON: {waste_pct_estimate, top_waste_items: [{name, total_out, likely_reason}], recommendations: [string]}.
 
 Data: ${JSON.stringify(outMovements)}`;
-      const text = await callClaude(prompt, { maxTokens: 900 });
+      const text = await callGemini(prompt, { maxTokens: 900 });
       result = extractJson(text);
     } catch (aiErr) {
       const wasteLike = outMovements.filter((m) => /waste|spoil|expired/i.test(m.reference || ''));
