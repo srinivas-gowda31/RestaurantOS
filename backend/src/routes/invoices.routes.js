@@ -5,7 +5,7 @@ const fs = require('fs');
 const ExcelJS = require('exceljs');
 const pool = require('../config/db');
 const { authenticate, authorize } = require('../middleware/auth');
-const { extractTextFromInvoice, parseInvoiceText } = require('../services/tesseractClient');
+const { extractInvoiceWithClaude, extractTextFromInvoice, parseInvoiceText } = require('../services/tesseractClient');
 const { uploadInvoice, deleteInvoice, listInvoices } = require('../services/cloudinaryService');
 
 const router = express.Router();
@@ -41,38 +41,34 @@ router.post('/upload', upload.single('invoice'), async (req, res) => {
 
     let extracted;
     try {
-      console.log(`Extracting invoice from ${req.file.originalname} using Tesseract OCR...`);
+      console.log(`Extracting invoice from ${req.file.originalname} using Claude Vision...`);
 
-      // For PDFs, we need to convert first (simplified - just note that it's a PDF)
-      if (isPdf) {
-        extracted = {
-          supplier_name: null,
-          invoice_number: null,
-          invoice_date: null,
-          total_amount: null,
-          line_items: [],
-          confidence: 0,
-          notes: 'PDF files require manual extraction - please upload PNG/JPG instead',
-        };
-        console.warn('PDF uploaded - Tesseract OCR works best with PNG/JPG images');
-      } else {
-        // Extract text from image using Tesseract
+      // Use Claude Vision API for extraction (works with both printed and handwritten invoices)
+      try {
+        extracted = await extractInvoiceWithClaude(filePath);
+        console.log(`✓ Claude extracted: supplier=${extracted.supplier_name}, amount=${extracted.total_amount}, confidence=${extracted.confidence}`);
+      } catch (claudeErr) {
+        console.warn(`Claude extraction failed (${claudeErr.message}), falling back to Tesseract...`);
+
+        // Fallback to Tesseract if Claude fails
+        if (isPdf) {
+          throw new Error('PDF files require Claude Vision. Tesseract cannot process PDFs.');
+        }
+
         const extractedText = await extractTextFromInvoice(filePath);
-        console.log(`Tesseract extracted: ${extractedText.length} characters`);
-
-        // Parse the extracted text into structured data
+        console.log(`Tesseract fallback: ${extractedText.length} characters`);
         extracted = parseInvoiceText(extractedText);
-        extracted.confidence = Math.max(0.5, Math.min(1, extracted.confidence + 0.1));
+        extracted.notes = 'Extracted via Tesseract (Claude fallback)';
       }
     } catch (ocrErr) {
-      // Store the upload even if OCR extraction fails
+      // Store the upload even if extraction fails
       const failedInsert = await pool.query(
         `INSERT INTO supplier_invoices (file_name, file_path, status, raw_extraction)
          VALUES ($1,$2,'failed',$3) RETURNING *`,
         [req.file.originalname, req.file.path, JSON.stringify({ error: ocrErr.message })]
       );
       return res.status(502).json({
-        error: 'OCR extraction failed. File was saved for manual review.',
+        error: 'Invoice extraction failed. File was saved for manual review.',
         detail: ocrErr.message,
         invoice: failedInsert.rows[0],
       });
