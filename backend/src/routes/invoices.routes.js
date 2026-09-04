@@ -5,7 +5,7 @@ const fs = require('fs');
 const ExcelJS = require('exceljs');
 const pool = require('../config/db');
 const { authenticate, authorize } = require('../middleware/auth');
-const { extractInvoiceWithClaude, extractTextFromInvoice, parseInvoiceText } = require('../services/tesseractClient');
+const { extractInvoiceData } = require('../services/invoiceExtraction');
 const { uploadInvoice, deleteInvoice, listInvoices } = require('../services/cloudinaryService');
 
 const router = express.Router();
@@ -27,8 +27,8 @@ const upload = multer({
   },
 });
 
-// Tesseract OCR will extract text and parse it locally
-// No system prompt needed - using Tesseract.js
+// Invoice OCR + extraction is powered by Gemini Flash vision (see services/geminiClient.js),
+// with a local Tesseract OCR fallback if GEMINI_API_KEY is not configured or the call fails.
 
 // POST /api/invoices/upload  (multipart, field name: "invoice")
 // Temporarily disabled auth for testing - re-enable after testing
@@ -37,29 +37,11 @@ router.post('/upload', upload.single('invoice'), async (req, res) => {
 
   try {
     const filePath = req.file.path;
-    const isPdf = req.file.mimetype === 'application/pdf';
 
     let extracted;
     try {
-      console.log(`Extracting invoice from ${req.file.originalname} using Claude Vision...`);
-
-      // Use Claude Vision API for extraction (works with both printed and handwritten invoices)
-      try {
-        extracted = await extractInvoiceWithClaude(filePath);
-        console.log(`✓ Claude extracted: supplier=${extracted.supplier_name}, amount=${extracted.total_amount}, confidence=${extracted.confidence}`);
-      } catch (claudeErr) {
-        console.warn(`Claude extraction failed (${claudeErr.message}), falling back to Tesseract...`);
-
-        // Fallback to Tesseract if Claude fails
-        if (isPdf) {
-          throw new Error('PDF files require Claude Vision. Tesseract cannot process PDFs.');
-        }
-
-        const extractedText = await extractTextFromInvoice(filePath);
-        console.log(`Tesseract fallback: ${extractedText.length} characters`);
-        extracted = parseInvoiceText(extractedText);
-        extracted.notes = 'Extracted via Tesseract (Claude fallback)';
-      }
+      console.log(`Extracting invoice from ${req.file.originalname} using Gemini Flash vision OCR...`);
+      extracted = await extractInvoiceData(filePath, req.file.mimetype);
     } catch (ocrErr) {
       // Store the upload even if extraction fails
       const failedInsert = await pool.query(

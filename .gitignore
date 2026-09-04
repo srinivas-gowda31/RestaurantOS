@@ -5,4 +5,6 @@ build/
 *.log
 uploads/invoices/*
 !uploads/invoices/.gitkeep
+backend/uploads/invoices/*
+!backend/uploads/invoices/.gitkeep
 .DS_Store

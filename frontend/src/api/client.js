@@ -1,9 +1,10 @@
 import axios from 'axios';
 
-// Use injected config from server if available, otherwise use default
+// Use injected config from server if available, otherwise use relative path
+// (works with Vite's dev proxy locally and same-origin proxying in production)
 const BACKEND_URL = typeof window !== 'undefined' && window.API_BASE_URL
   ? window.API_BASE_URL
-  : 'https://restaurantos-backend-wg6g.onrender.com/api';
+  : '/api';
 
 const api = axios.create({
   baseURL: BACKEND_URL,
