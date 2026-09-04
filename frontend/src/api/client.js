@@ -1,10 +1,8 @@
 import axios from 'axios';
 
-// Use injected config from server if available, otherwise use relative path
-// (works with Vite's dev proxy locally and same-origin proxying in production)
-const BACKEND_URL = typeof window !== 'undefined' && window.API_BASE_URL
-  ? window.API_BASE_URL
-  : '/api';
+// Use Vite environment variable or fallback to relative path
+// VITE_API_BASE_URL is set in Vercel environment variables at build time
+const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const api = axios.create({
   baseURL: BACKEND_URL,
