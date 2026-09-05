@@ -1,18 +1,22 @@
 const fs = require('fs');
 
 const MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+// Tried if MODEL is overloaded/rate-limited - an older, more established model tends to
+// have more provisioned capacity than a newer one under a demand spike.
+const FALLBACK_MODEL = 'gemini-2.5-flash';
+
+const apiUrlFor = (model) => `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
 const RETRYABLE_STATUSES = new Set([429, 500, 503]);
 const MAX_RETRIES = 3;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** POSTs to the Gemini API, retrying with backoff on transient overload/rate-limit errors. */
-async function postToGemini(apiKey, body) {
+/** POSTs to a specific Gemini model, retrying with backoff on transient overload/rate-limit errors. */
+async function postToModel(model, apiKey, body) {
   let lastErr;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+    const response = await fetch(`${apiUrlFor(model)}?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -29,6 +33,17 @@ async function postToGemini(apiKey, body) {
     await sleep(2 ** attempt * 1000); // 1s, 2s, 4s
   }
   throw lastErr;
+}
+
+/** POSTs to Gemini, falling back to a secondary model if the primary one is still overloaded after retries. */
+async function postToGemini(apiKey, body) {
+  try {
+    return await postToModel(MODEL, apiKey, body);
+  } catch (err) {
+    if (MODEL === FALLBACK_MODEL) throw err;
+    console.warn(`Gemini model ${MODEL} unavailable, trying fallback ${FALLBACK_MODEL}: ${err.message}`);
+    return postToModel(FALLBACK_MODEL, apiKey, body);
+  }
 }
 
 /**
