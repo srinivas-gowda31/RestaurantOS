@@ -3,6 +3,34 @@ const fs = require('fs');
 const MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 
+const RETRYABLE_STATUSES = new Set([429, 500, 503]);
+const MAX_RETRIES = 3;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** POSTs to the Gemini API, retrying with backoff on transient overload/rate-limit errors. */
+async function postToGemini(apiKey, body) {
+  let lastErr;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (response.ok) return response.json();
+
+    const errText = await response.text();
+    lastErr = new Error(`Gemini API error (${response.status}): ${errText}`);
+
+    if (!RETRYABLE_STATUSES.has(response.status) || attempt === MAX_RETRIES) {
+      throw lastErr;
+    }
+    await sleep(2 ** attempt * 1000); // 1s, 2s, 4s
+  }
+  throw lastErr;
+}
+
 /**
  * Sends a text-only prompt to Gemini and returns the response text.
  * @param {string} prompt - the prompt to send
@@ -23,18 +51,7 @@ async function callGemini(prompt, opts = {}) {
     generationConfig: { temperature: 0, maxOutputTokens: opts.maxTokens || 1500 },
   };
 
-  const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Gemini API error (${response.status}): ${errText}`);
-  }
-
-  const data = await response.json();
+  const data = await postToGemini(apiKey, body);
   const parts = data.candidates?.[0]?.content?.parts || [];
   return parts.map((p) => p.text || '').join('\n');
 }
@@ -65,18 +82,7 @@ async function callGeminiWithFile(filePath, mimeType, prompt) {
     generationConfig: { temperature: 0 },
   };
 
-  const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Gemini API error (${response.status}): ${errText}`);
-  }
-
-  const data = await response.json();
+  const data = await postToGemini(apiKey, body);
   const parts = data.candidates?.[0]?.content?.parts || [];
   return parts.map((p) => p.text || '').join('\n');
 }
