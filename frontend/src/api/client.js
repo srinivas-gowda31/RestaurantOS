@@ -6,6 +6,7 @@ const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const api = axios.create({
   baseURL: BACKEND_URL,
+  withCredentials: true, // send/receive the httpOnly auth_token cookie
 });
 
 console.log('API Base URL:', BACKEND_URL);

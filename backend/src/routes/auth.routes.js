@@ -8,6 +8,14 @@ const router = express.Router();
 
 const ROLES = ['owner', 'manager', 'chef', 'waiter', 'cashier', 'store_manager'];
 
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  maxAge: 12 * 60 * 60 * 1000, // matches the JWT's 12h expiry
+  path: '/',
+};
+
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
@@ -29,6 +37,7 @@ router.post('/register', async (req, res) => {
       expiresIn: '12h',
     });
 
+    res.cookie('auth_token', token, COOKIE_OPTIONS);
     res.status(201).json({ token, user });
   } catch (err) {
     res.status(500).json({ error: 'Registration failed', detail: err.message });
@@ -51,6 +60,7 @@ router.post('/login', async (req, res) => {
       expiresIn: '12h',
     });
 
+    res.cookie('auth_token', token, COOKIE_OPTIONS);
     res.json({
       token,
       user: { id: user.id, name: user.name, email: user.email, role: user.role }
@@ -67,7 +77,7 @@ router.get('/me', authenticate, async (req, res) => {
 });
 
 router.post('/logout', (req, res) => {
-  res.clearCookie('auth_token', { path: '/' });
+  res.clearCookie('auth_token', { path: COOKIE_OPTIONS.path, secure: COOKIE_OPTIONS.secure, sameSite: COOKIE_OPTIONS.sameSite });
   res.json({ message: 'Logged out successfully' });
 });
 
